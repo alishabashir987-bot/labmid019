@@ -1,0 +1,42 @@
+{
+  "regression": {
+    "linear": {
+      "name": "Linear Regression",
+      "r2": 0.8513
+    },
+    "decision_tree": {
+      "name": "Decision Tree",
+      "r2": 0.8278
+    },
+    "random_forest": {
+      "name": "Random Forest",
+      "r2": 0.8443
+    },
+    "svm": {
+      "name": "SVM (SVR)",
+      "r2": 0.8511
+    }
+  },
+  "classification": {
+    "linear": {
+      "name": "Logistic Regression",
+      "accuracy": 0.9122
+    },
+    "decision_tree": {
+      "name": "Decision Tree",
+      "accuracy": 0.9731
+    },
+    "naive_bayes": {
+      "name": "Naive Bayes",
+      "accuracy": 0.7564
+    },
+    "random_forest": {
+      "name": "Random Forest",
+      "accuracy": 0.9836
+    },
+    "svm": {
+      "name": "SVM (SVC)",
+      "accuracy": 0.9496
+    }
+  }
+}

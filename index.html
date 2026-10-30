@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Loan ML App</title>
+  <style>
+    body { font-family: system-ui, sans-serif; background: #f4f6f8; margin: 0; padding: 24px; color: #222; }
+    h1 { text-align: center; margin-bottom: 4px; }
+    .sub { text-align: center; color: #666; margin-bottom: 20px; }
+    .menu { max-width: 360px; margin: 0 auto 24px; text-align: center; }
+    .menu label { font-weight: 600; margin-bottom: 6px; }
+    .wrap { display: flex; flex-wrap: wrap; gap: 24px; justify-content: center; }
+    .card { background: #fff; border-radius: 10px; padding: 20px; width: 360px; box-shadow: 0 2px 8px rgba(0,0,0,.08); }
+    h2 { margin-top: 0; font-size: 1.15rem; }
+    .score { display: inline-block; font-size: .8rem; background: #e0e7ff; color: #3730a3; padding: 2px 8px; border-radius: 99px; margin-bottom: 4px; }
+    label { display: block; margin: 10px 0 4px; font-size: .9rem; }
+    input, select { width: 100%; padding: 8px; box-sizing: border-box; border: 1px solid #ccc; border-radius: 6px; }
+    button { margin-top: 16px; width: 100%; padding: 10px; border: 0; border-radius: 6px; background: #2563eb; color: #fff; font-size: 1rem; cursor: pointer; }
+    button:hover { background: #1d4ed8; }
+    .result { margin-top: 16px; padding: 12px; border-radius: 6px; background: #eef2ff; min-height: 1.2em; }
+    .error { background: #fee2e2; color: #991b1b; }
+    .note { color: #666; font-size: .9rem; }
+    .hidden { display: none; }
+  </style>
+</head>
+<body>
+  <h1>Loan ML App</h1>
+  <p class="sub">Choose a model from the menu to see its prediction forms.</p>
+
+  <!-- Model menu -->
+  <div class="menu">
+    <label for="model-select">Select model</label>
+    <select id="model-select">
+      <option value="linear">Linear / Logistic Regression</option>
+      <option value="decision_tree">Decision Tree</option>
+      <option value="naive_bayes">Naive Bayes</option>
+      <option value="random_forest">Random Forest</option>
+      <option value="svm">SVM</option>
+    </select>
+  </div>
+
+  <div class="wrap">
+    <!-- Regression form -->
+    <div class="card" id="reg-card">
+      <h2>Regression: Predict Loan Amount</h2>
+      <span class="score" id="reg-score"></span>
+      <form id="reg-form">
+        <label>Education</label>
+        <select name="education"><option value="1">Graduate</option><option value="0">Not Graduate</option></select>
+        <label>Self employed</label>
+        <select name="self_employed"><option value="0">No</option><option value="1">Yes</option></select>
+        <label>Annual income</label>
+        <input type="number" name="income_annum" value="5000000" min="0" required>
+        <label>Loan term (years)</label>
+        <input type="number" name="loan_term" value="10" min="1" required>
+        <label>CIBIL score (300-900)</label>
+        <input type="number" name="cibil_score" value="650" min="300" max="900" required>
+        <label>Bank asset value</label>
+        <input type="number" name="bank_asset_value" value="5000000" min="0" required>
+        <button type="submit">Predict amount</button>
+      </form>
+      <div class="result" id="reg-result"></div>
+    </div>
+
+    <!-- Classification form -->
+    <div class="card" id="clf-card">
+      <h2>Classification: Loan Approval</h2>
+      <span class="score" id="clf-score"></span>
+      <form id="clf-form">
+        <label>Education</label>
+        <select name="education"><option value="1">Graduate</option><option value="0">Not Graduate</option></select>
+        <label>Self employed</label>
+        <select name="self_employed"><option value="0">No</option><option value="1">Yes</option></select>
+        <label>Annual income</label>
+        <input type="number" name="income_annum" value="5000000" min="0" required>
+        <label>Loan amount</label>
+        <input type="number" name="loan_amount" value="15000000" min="0" required>
+        <label>Loan term (years)</label>
+        <input type="number" name="loan_term" value="10" min="1" required>
+        <label>CIBIL score (300-900)</label>
+        <input type="number" name="cibil_score" value="650" min="300" max="900" required>
+        <label>Bank asset value</label>
+        <input type="number" name="bank_asset_value" value="5000000" min="0" required>
+        <button type="submit">Predict status</button>
+      </form>
+      <div class="result" id="clf-result"></div>
+    </div>
+  </div>
+
+  <script>
+    // If the page is opened straight from disk, talk to the local server; otherwise use the same origin.
+    const API = location.protocol === "file:" ? "http://127.0.0.1:8001" : "";
+    const select = document.getElementById("model-select");
+    let available = { regression: {}, classification: {} };
+
+    // Show only the cards that the selected model supports, with its test score
+    function updateView() {
+      const m = select.value;
+      const hasReg = m in available.regression;
+      const hasClf = m in available.classification;
+      document.getElementById("reg-card").classList.toggle("hidden", !hasReg);
+      document.getElementById("clf-card").classList.toggle("hidden", !hasClf);
+      if (hasReg) document.getElementById("reg-score").textContent =
+        available.regression[m].name + " | R2 = " + available.regression[m].r2;
+      if (hasClf) document.getElementById("clf-score").textContent =
+        available.classification[m].name + " | Accuracy = " + (available.classification[m].accuracy * 100).toFixed(2) + "%";
+      // Clear old results when the model changes
+      for (const id of ["reg-result", "clf-result"]) {
+        const el = document.getElementById(id); el.textContent = ""; el.className = "result";
+      }
+      let note = document.getElementById("note");
+      if (!note) {
+        note = document.createElement("p");
+        note.id = "note"; note.className = "note"; note.style.textAlign = "center";
+        document.querySelector(".wrap").before(note);
+      }
+      note.textContent = !hasReg && hasClf ? "Naive Bayes is a classification-only algorithm, so there is no regression form for it." : "";
+    }
+
+    async function loadModels() {
+      try {
+        const res = await fetch(API + "/models");
+        available = await res.json();
+      } catch (err) {
+        document.querySelector(".sub").textContent = "Could not reach the API: " + err.message;
+      }
+      updateView();
+    }
+    select.addEventListener("change", updateView);
+    loadModels();
+
+    async function send(form, endpoint, resultEl, render) {
+      const out = document.getElementById(resultEl);
+      out.className = "result";
+      out.textContent = "Predicting...";
+      // Convert every form field to a number
+      const body = Object.fromEntries(
+        [...new FormData(form).entries()].map(([k, v]) => [k, Number(v)])
+      );
+      try {
+        const res = await fetch(API + endpoint + "?model=" + encodeURIComponent(select.value), {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(body),
+        });
+        if (!res.ok) throw new Error("Server returned " + res.status);
+        out.textContent = render(await res.json());
+      } catch (err) {
+        out.className = "result error";
+        out.textContent = "Error: " + err.message;
+      }
+    }
+
+    document.getElementById("reg-form").addEventListener("submit", (e) => {
+      e.preventDefault();
+      send(e.target, "/predict/regression", "reg-result",
+        (d) => d.model_name + " predicts loan amount: " + d.predicted_loan_amount.toLocaleString());
+    });
+
+    document.getElementById("clf-form").addEventListener("submit", (e) => {
+      e.preventDefault();
+      send(e.target, "/predict/classification", "clf-result",
+        (d) => d.model_name + ": " + d.label + " (confidence " + (d.confidence * 100).toFixed(1) + "%)");
+    });
+  </script>
+</body>
+</html>
